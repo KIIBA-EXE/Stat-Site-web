@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Env & Secrets
+.env
+*.env
+*credentials*.json
+*service-account*.json
+gcp-service-account.json
+
+# Logs
+*.log
+cron.log
+
+# VS Code
+.vscode/

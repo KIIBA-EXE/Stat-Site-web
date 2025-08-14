@@ -1,0 +1,70 @@
+name: GSC to Notion Weekly
+
+on:
+  schedule:
+    # Exécutions à 06:00 et 07:00 UTC le lundi; un garde assurera 08:00 Europe/Paris
+    - cron: '0 6 * * 1'
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute 08:00 Europe/Paris guard
+        id: guard
+        shell: bash
+        run: |
+          export TZ=Europe/Paris
+          echo "Now Paris time: $(date)"
+          if [ "$(date +%u)" -eq 1 ] && [ "$(date +%H)" = "08" ]; then
+            echo "SHOULD_RUN=true" >> $GITHUB_ENV
+          else
+            echo "SHOULD_RUN=false" >> $GITHUB_ENV
+          fi
+
+      - name: Setup Python
+        if: env.SHOULD_RUN == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        if: env.SHOULD_RUN == 'true'
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Create service account file
+        if: env.SHOULD_RUN == 'true'
+        run: |
+          echo "$GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT" > gcp-service-account.json
+        shell: bash
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT }}
+
+      - name: Run sync weekly-device
+        if: env.SHOULD_RUN == 'true'
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID_DESKTOP: ${{ secrets.NOTION_DATABASE_ID_DESKTOP }}
+          NOTION_DATABASE_ID_MOBILE: ${{ secrets.NOTION_DATABASE_ID_MOBILE }}
+          NOTION_DATABASE_ID_TABLET: ${{ secrets.NOTION_DATABASE_ID_TABLET }}
+          NOTION_RATE_LIMIT_PER_SEC: '3'
+          GOOGLE_SERVICE_ACCOUNT_JSON: gcp-service-account.json
+        run: |
+          source .venv/bin/activate
+          python src/gsc_to_notion.py \
+            --site-url "sc-domain:danslesbottes.fr" \
+            --mode weekly-device \
+            --days-back 30 \
+            --lag-days 2
+
+      - name: Skip info
+        if: env.SHOULD_RUN != 'true'
+        run: |
+          echo "Skipped: not Monday 08:00 Europe/Paris."

@@ -1,0 +1,6 @@
+google-api-python-client==2.137.0
+google-auth==2.33.0
+notion-client==2.2.1
+python-dotenv==1.0.1
+tenacity==8.5.0
+pytz==2024.1
