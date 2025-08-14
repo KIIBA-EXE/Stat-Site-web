@@ -21,26 +21,26 @@ jobs:
           export TZ=Europe/Paris
           echo "Now Paris time: $(date)"
           if [ "$(date +%u)" -eq 1 ] && [ "$(date +%H)" = "08" ]; then
-            echo "SHOULD_RUN=true" >> $GITHUB_ENV
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
-            echo "SHOULD_RUN=false" >> $GITHUB_ENV
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Setup Python
-        if: env.SHOULD_RUN == 'true'
+        if: steps.guard.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Install deps
-        if: env.SHOULD_RUN == 'true'
+        if: steps.guard.outputs.should_run == 'true'
         run: |
           python -m venv .venv
           source .venv/bin/activate
           pip install -r requirements.txt
 
       - name: Create service account file
-        if: env.SHOULD_RUN == 'true'
+        if: steps.guard.outputs.should_run == 'true'
         run: |
           echo "$GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT" > gcp-service-account.json
         shell: bash
@@ -48,7 +48,7 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT }}
 
       - name: Run sync weekly-device
-        if: env.SHOULD_RUN == 'true'
+        if: steps.guard.outputs.should_run == 'true'
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID_DESKTOP: ${{ secrets.NOTION_DATABASE_ID_DESKTOP }}
@@ -65,6 +65,6 @@ jobs:
             --lag-days 2
 
       - name: Skip info
-        if: env.SHOULD_RUN != 'true'
+        if: steps.guard.outputs.should_run != 'true'
         run: |
           echo "Skipped: not Monday 08:00 Europe/Paris."
